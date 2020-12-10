@@ -39,7 +39,7 @@ class Character {
 
   public List<string> Resistances;
   public List<string> Immunities;
-  public Dictionary <string,List<Item>> EquippedItems { get; private set; }
+  public List<Item> EquippedItems { get; private set; }
 
   public ModifierCollection Modifiers;
   public int FreeHands;
@@ -49,10 +49,9 @@ class Character {
 /****************** Modifier Management **********************/  
   public void RefreshModifiers() {
     _CombinedMods = new ModifierCollection(Modifiers);
-    foreach(KeyValuePair<string,List<Item>> pair in EquippedItems) {
-      foreach(Item item in pair.Value) {
-        _CombinedMods.Add(item.Modifiers);
-      }
+    // TODO: Check for attunement to character
+    foreach(Item item in EquippedItems) {
+      _CombinedMods.Add(item.Modifiers);
     }
   }
 
@@ -72,6 +71,7 @@ class Character {
       LevelDown();
     }
   }
+
   public void AddExperience(int amount) {
     SetExperience(Experience + amount);
   }
@@ -114,8 +114,6 @@ class Character {
 
 /******************** Items **********************/
   public bool Equip(Item item) {
-    StringComparer comp = Definitions.StringComp;
-    if(item.Type == "") return false;
     if(FreeHands < item.Hands) {
       return false;
     }
@@ -128,23 +126,16 @@ class Character {
     }
     if(requierment.Value == 0) return false;
 
-    if(EquippedItems.ContainsKey(item.Type))
-      EquippedItems[item.Type].Add(item);
-    else
-      EquippedItems.Add(item.Type,new List<Item>() { item });
+    EquippedItems.Add(item);
     FreeHands -= item.Hands;
     RefreshModifiers();
     return true;
   }
 
   public bool Unequip(Item item) {
-    if(!EquippedItems.ContainsKey(item.Type)) return false;
-    if(!EquippedItems[item.Type].Contains(item)) return false;
-    EquippedItems[item.Type].Remove(item);
+    if(!EquippedItems.Contains(item)) return false;
+    EquippedItems.Remove(item);
 
-    if(EquippedItems[item.Type].Count == 0) {
-      EquippedItems.Remove(item.Type);
-    }
     FreeHands += item.Hands;
     RefreshModifiers();
     return true;
@@ -154,13 +145,10 @@ class Character {
     StringComparer comp = Definitions.StringComp;
     if(args.Length == 0)
       return EquippedItems.Count > 0;
-    string type = args[0];
-    if(args.Length == 1)
-      return EquippedItems.ContainsKey(type);
 
-    foreach(Item item in EquippedItems[type]) {
-      for(int i = 1;i < args.Length;i++) {
-        if(item.Properties.FindIndex( x => comp.Equals(x, args[i])) == -1) {
+    foreach(Item item in EquippedItems) {
+      foreach(string arg in args) {
+        if(item.Properties.FindIndex( x => comp.Equals(x, arg)) == -1) {
           return false;
         }
       }
@@ -184,14 +172,6 @@ class Character {
     }
     return true;
   }
-  
-  public int SkillCheck(string skill) {
-    if(!ValidateSkill(skill)) return 0;
-    
-    int baseValue = Dice.Roll(1,20, Skills[skill].Advantage).Result +
-    GetSkillMod(skill);
-    return _CombinedMods.Compute(this,skill + " Check", baseValue);
-  }
 
   public int GetSkillMod(string skill) {
     if(!ValidateSkill(skill)) return 0;
@@ -207,32 +187,17 @@ class Character {
     return 10 + GetSkillMod(skill);
   }
 
-  public int AbilityCheck(string ability){
-    if(!ValidateAbility(ability)) return 0;
-    RefreshModifiers();
-
-    int baseValue = Dice.Roll(1,20, Abilities[ability].Advantage).Result + 
-      GetAbilityMod(ability);
-    return _CombinedMods.Compute(this,ability + " Check", baseValue);
-  }
-
-  public int AbilitySave(string ability) {
-    if(!ValidateAbility(ability)) return 0;
-    RefreshModifiers();
-
+  public int GetAbilitySaveMod(string ability) {
     int profBonus = 0;
     if(Proficiencies.Contains(ability)) 
       profBonus = GetProficiencyBonus();
-
-    int baseValue = Dice.Roll(1,20, Abilities[ability].Advantage).Result + 
-      GetAbilityMod(ability) +
-      profBonus;
-    return _CombinedMods.Compute(this,ability + "Save", baseValue);
+    
+    int baseValue = GetAbilityMod(ability);
+    return _CombinedMods.Compute(this, ability + "Save", baseValue);
   }
   
   public int GetAbilityMod(string ability) {
-    if(!ValidateAbility(ability)) return 0;
-    int baseValue = (GetAbilityScore(ability)) / 2 - 5;
+    int baseValue = GetAbilityScore(ability) / 2 - 5;
     return  _CombinedMods.Compute(this,ability + "Mod", baseValue);
   }
 
@@ -241,7 +206,6 @@ class Character {
     int output = _CombinedMods.Compute(this,ability,Abilities[ability].Score);;
     return output;
   }
-  
 
   public void SetAbilityScore(string ability, int newScore) {
     if(!ValidateAbility(ability)) return;
@@ -253,6 +217,16 @@ class Character {
       Skills[type].Advantage = adv;
     } else if (Abilities.ContainsKey(type)) {
       Abilities[type].Advantage = adv;
+    }
+  }
+
+  public int GetMod(string type) {
+    if(Skills.ContainsKey(type)) {
+      return GetSkillMod(type);
+    } else if (Abilities.ContainsKey(type)) {
+      return GetAbilityMod(type);
+    } else {
+      return _CombinedMods.Compute(this, type, 0);
     }
   }
 
@@ -298,6 +272,20 @@ public void SetProficiency(string type, bool setProf) {
   public int DeathFails;
   public bool Dead;
 
+  public void FailDeathSave(bool critical = false) {
+    if(!Dying) return;
+    if(critical) DeathFails += 2;
+    else DeathFails += 1;
+    if(DeathFails >= 3) Dead = true;
+  }
+
+  public void SucceedDeathSave(bool critical = false) {
+    if(!Dying) return;
+    if(critical) DeathSaves += 2;
+    else DeathSaves += 1;
+    if(DeathSaves >= 3) Dying = false;
+  }
+
   public void DealDamage(int amount, string damageType) {
     if(Immunities.Contains(damageType)) return;
     if(Resistances.Contains(damageType))
@@ -310,39 +298,39 @@ public void SetProficiency(string type, bool setProf) {
     }
     
     if(Dying) {
-      // fail a death save
-      DeathFails += 1;
-      if(DeathFails >= 3) Dead = true;
+      FailDeathSave();
       return;
     }
 
     if (CurrentHP <= 0) {
       CurrentHP = 0;
-      Dying = true;
       DeathSaves = 0;
       DeathFails = 0;
+      Dying = true;
     }
   }
 
   public void MakeDeathSave() {
     int result = Dice.Roll(1,20).Result;
     if(result == 20){
-      DeathSaves += 2;
-      if(DeathSaves >= 3) Dying = false;
+      SucceedDeathSave(true);
     }else if(result == 1) {
-      DeathFails += 2;
-      if(DeathFails >= 3) Dead = true;
+      FailDeathSave(true);
     } else if(result >= 10) {
-      DeathSaves += 1;
-      if(DeathSaves >= 3) Dying = false;
+      SucceedDeathSave();
     } else {
-      DeathFails += 1;
-      if(DeathFails >= 3) Dead = true;
+      FailDeathSave();
     }
   }
 
   /******************* Turn Actions **********************/
-
+  // Eh. I think all of this will change later
+  // Ideas:
+  // - Make "Action", "Bonus Action", "Reaction" all general trackers.
+  //    Give definition for when trackers reset. i.e. Tracker(Name = "Action", InitialValue = 1, Reset = GameTrigger.TurnStart)
+  //    GameTrigger may include: None, TurnStart, RoundStart, DayStart, LongRest, ShortRest, ... Other Triggers we may need
+  //    Tracker Stores Name:string, InitialValue:int, CurrentValue: int, Reset:GameTrigger
+  //    Store Trackers in Trackers Dictionary
   public void StartTurn() {
     ActionEconomy["Action"] = 1;
     ActionEconomy["Bonus Action"] = 1;
@@ -419,7 +407,7 @@ public void SetProficiency(string type, bool setProf) {
     Resistances = new List<string>();
     Immunities = new List<string>();
     Proficiencies = new List<string>();
-    EquippedItems = new Dictionary<string,List<Item>>(Definitions.StringComp);
+    EquippedItems = new List<Item>();
     FreeHands = 2;
 
     Level = 1;

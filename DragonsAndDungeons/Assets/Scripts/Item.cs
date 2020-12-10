@@ -6,11 +6,6 @@ class Item {
   public double Weight = 0;
   public double Cost = 0;
   public string Description = "";
-  private string _Type = "Adventuring Gear";
-  public string Type { 
-    get {return _Type;} 
-    set { _Type = value.Trim(); } 
-  }
 
   public int Hands = 0;
   public Expression Requirement = new Expression("TRUE");
@@ -35,7 +30,6 @@ class Item {
       this.Weight = oldItem.Weight;
       this.Cost = oldItem.Cost;
       this.Description = oldItem.Description;
-      this._Type = oldItem._Type;
       this.Name = oldItem.Name;
       this.Requirement = oldItem.Requirement;
       this.Hands = oldItem.Hands;
