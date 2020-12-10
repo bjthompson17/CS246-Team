@@ -1,0 +1,65 @@
+{
+  "Items":[
+    {
+      "Name":"Studded Leather Armor",
+      "Weight":20,
+      "Cost":"10gp",
+      "Type":"Armor",
+      "Description":"Made from tough but flexible leather, studded leather is reinforced with close-set rivets or spikes.",
+      "Modifiers":[
+        {
+          "Name":"Leather Armor AC",
+          "Type":"AC",
+          "Expr":"11 + DEX"
+        }
+      ],
+      "Properties":[
+        "Light"
+      ]
+    },
+    {
+      "Name":"Battleaxe",
+      "Weight":4,
+      "Cost":"10gp",
+      "Type":"Weapon",
+      "Damage1H":"1d8",
+      "Damage2H":"1d10",
+      "DamageType":"Slashing",
+      "Hands":1,
+      "Properties":[
+        "Versitile",
+        "Martial",
+        "Melee"
+      ],
+      "Requirement":"HASPROF(MARTIAL WEAPONS)"
+    },
+    {
+      "Name":"Sheild",
+      "Weight":6,
+      "Cost":"10gp",
+      "Type":"Sheild",
+      "Description":"A shield is made from wood or metal and is carried in one hand. Wielding a shield increases your Armor Class by 2. You can benefit from only one shield at a time.",
+      "Hands":1,
+      "Requirement":"!EQUIPPED(Sheild)",
+      "Modifiers":[
+        { "Name":"Sheild AC Bonus","Type":"AC","Expr":"+2" }
+      ]
+    },
+    {
+      "Name":"Plate Armor",
+      "Weight":6,
+      "Cost":"10gp",
+      "Type":"Armor",
+      "Description":"A shield is made from wood or metal and is carried in one hand. Wielding a shield increases your Armor Class by 2. You can benefit from only one shield at a time.",
+      "Hands":1,
+      "Requirement":"STR >= 13 AND NOTEQUIPPED(ARMOR)",
+      "Properties":[
+        "Heavy",
+        "Metal"
+      ],
+      "Modifiers":[
+        { "Name":"Sheild AC Bonus","Type":"AC","Expr":"+2" }
+      ]
+    }
+  ]
+}
