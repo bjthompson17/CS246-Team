@@ -258,7 +258,7 @@ static class ExpressionCalculator {
 
       else if(groups["const"].Value != "") {
         if(groups["const_list"].Value != "") {
-          string[] args = groups["const_list"].Value.Split(',');
+          string[] args = SplitBalanced(',',groups["const_list"].Value);
           List<double> tempValue = new List<double>(args.Length);
           evaluated_string += "[";
           for(int i = 0;i < args.Length;i++) {
@@ -371,52 +371,82 @@ static class ExpressionCalculator {
 
       else if (groups["list_op"].Value != "") {
         string opName = groups["list_op"].Value;
+        
+        int resultCount = 1;
+        if(groups["list_count"].Value != "") {
+          resultCount = Int32.Parse(groups["list_count"].Value);
+        }
+        if(resultCount <= 0) resultCount = 1;
+
+        // Deal with the operation name
         Func<double, double, bool> compare;
         switch(opName) {
           case "MAX":
-            compare = delegate (double a, double b) { return a > b; };
+            compare = delegate (double _new, double _old) { return _new > _old; };
           break;
           case "MIN":
-            compare = delegate (double a, double b) { return a < b; };
+            compare = delegate (double _new, double _old) { return _new < _old; };
           break;
           default:
-            return new ExpressionResult(false, $"{opName} is not a valid list operation",new double[] { 2 });
+            return new ExpressionResult(false, $"{opName} is not a valid list operation",new double[] { 0 });
         }
 
-        evaluated_string += $"{opName}[";
-        string[] exprs = groups["list_inside"].Value.Split(',');
-        ExpressionResult result = Evaluate(exprs[0],charRef,variables);
-        if(!result.Success)
-          return result;
+        // Parse the arguments
+        string[] exprs = SplitBalanced(',',groups["list_inside"].Value);
+        if(exprs.Length <= 0) return new ExpressionResult(false, $"{opName} must have at least 1 value", new double[] { 0 });
         
-        evaluated_string += result.Message;
-        double compValue = result.Values[0];
-        foreach(double val in result.Values) {
-          if(compare(val,compValue)) {
-            compValue = val;
-          }
-        }
+        evaluated_string += $"{opName}{resultCount}[";
 
-        for(int i = 1;i < exprs.Length;i++) {
-          result = Evaluate(exprs[i],charRef,variables);
+        // initialize comparison values:
+        double[] compValues = new double[resultCount];
+        int initIndex = 0;
+        
+        for(int i = 0;i < exprs.Length;i++){
+          ExpressionResult result = Evaluate(exprs[i],charRef,variables);
           if(!result.Success)
             return result;
-          evaluated_string += ", " + result.Message;
-          foreach(double val in result.Values) {
-            if(compare(val,compValue)) {
-              compValue = val;
+
+          if(i != 0) evaluated_string += ", ";
+          evaluated_string += result.Message;
+          
+          // set comparison values to the first item in the first expression's result
+          // finish comparison if needed
+          foreach(double newVal in result.Values) {
+            // if our initial values aren't filled in, fill them first.
+            // no comparison is needed for the initial set.
+            if(initIndex < resultCount) {
+              compValues[initIndex] = newVal;
+              initIndex++;
+              continue;
+            }
+
+            int k = 0;
+            double oldVal = 0;
+            for(;k < resultCount;k++)
+            { 
+              // if we have a match, store the old value,
+              // plug in the new one, and break out of this loop
+              if(compare(newVal,compValues[k])){
+                oldVal = compValues[k];
+                compValues[k] = newVal;
+                break;
+              }
+            }
+            // sift the old value down the rest of the results
+            for(;k < resultCount;k++) {
+              if(compare(oldVal,compValues[k])) compValues[k] = oldVal;
             }
           }
-          
         }
-        value = new double[] { compValue };
+
+        value = compValues;
         evaluated_string += $"] ({String.Join(",",value)})";
       }
 
       else if (groups["func"].Value != "") {
         string funcName = groups["func"].Value;
 
-        string[] funcArgs = groups["func_args"].Value.Split(',');
+        string[] funcArgs = SplitBalanced(',',groups["func_args"].Value);
         if(funcArgs[0] == "") funcArgs = new string[0];
         for(int i = 0;i < funcArgs.Length;i++) {
           funcArgs[i] = funcArgs[i].Trim();
@@ -447,7 +477,7 @@ static class ExpressionCalculator {
             break;
             
             default:
-            return new ExpressionResult(false, $"{funcName} with {funcArgs.Length} arguments is not a valid function",new double[] { 3 });
+            return new ExpressionResult(false, $"{funcName} with {funcArgs.Length} arguments is not a valid function",new double[] { 0 });
           }
         }
         evaluated_string += $"{funcName}({String.Join(",",funcArgs)}) ({value[0]})";
@@ -456,7 +486,7 @@ static class ExpressionCalculator {
       else {
         return new ExpressionResult(false, 
         $"Invalid Operator\n \"{expr}\"\n"+
-        " " + underlineError(match), new double[] { 4 });
+        " " + underlineError(match), new double[] { 0 });
       }
 
       // Handle preoperator
@@ -542,6 +572,8 @@ static class ExpressionCalculator {
     
     return new ExpressionResult(true, evaluated_string, total);
   }
+
+  /************************Helper Functions ***********************/
 
   private static string underlineError(Match match) {
     string output = "";
@@ -638,6 +670,42 @@ static class ExpressionCalculator {
         default:
           return _false;
     }
+  }
+
+  private static string[] SplitBalanced(char delimiter, string text) {
+    int p_counter = 0;
+    int b_counter = 0;
+    int c_counter = 0;
+    List<string> output = new List<string>();
+    string substr = "";
+    for(int i = 0;i < text.Length;i++){
+      switch(text[i]) {
+        case '(': p_counter++;
+          break;
+        case ')': p_counter--;
+          break;
+        case '[': b_counter++;
+          break;
+        case ']': b_counter--;
+          break;
+        case '{': c_counter++;
+          break;
+        case '}': c_counter--;
+          break;
+        default:
+          if(text[i] == delimiter) {
+            if(p_counter + b_counter + c_counter == 0){
+              output.Add(substr);
+              substr = "";
+              continue;
+            }
+          }
+          break;
+      }
+      substr += text[i];
+    }
+    output.Add(substr);
+    return output.ToArray();
   }
 
   #if (DEBUG)
