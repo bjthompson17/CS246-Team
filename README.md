@@ -39,6 +39,9 @@ The terminal has all our RegEx functions to help calculate things such as roles 
 or clicking the (<) to the right of the GUI. Here you have access to our built in calculatior, where you may roll dice, add constants, and while you have a character selected, add ability score modifiers. 
 
 Rolling dice is done through the phrase (x)D(y), where x is the number of dice and y is the number of sides on the dice (these must be whole number non-negative intergers).  See the example below.
+
 ![Dice Example 1](pict_dnd/dice_roll.jpg)
 ![Dice Example 2](pict_dnd/dice_ex_2.jpg)
+
+
 You may also add, subtract, multiply or divide constants to dice roll, either by typing the interger, or typing out the associated basic stat (STR, DEX, CON, WIS, INT, CHR).
