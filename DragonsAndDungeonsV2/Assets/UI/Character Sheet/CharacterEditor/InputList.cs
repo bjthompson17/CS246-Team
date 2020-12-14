@@ -13,7 +13,7 @@ public class InputList : MonoBehaviour
         get => transform.childCount;
     }
 
-    void Start() {
+    void Awake() {
         Clear();
     }
 
