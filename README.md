@@ -15,8 +15,11 @@ This project was originally our attempt to build a virtual tabletop for the role
 
 #####1. Adding Tokens to the Field
 To add tokens to the field, press the (+) symbol in the top left corner. This will expand a small menu. Click "Add Token" and a token will apear. These tokens have colision with each other.
+
 ![(+)Symbol](pict_dnd/plus_symbol.jpg)
+
 ![Mini Menu](pict_dnd/mini_menu.jpg)
+
 ![Token on Field](pict_dnd/token_present.jpg)
 
 #####2. Token Funtionalities 
@@ -41,6 +44,8 @@ or clicking the (<) to the right of the GUI. Here you have access to our built i
 Rolling dice is done through the phrase (x)D(y), where x is the number of dice and y is the number of sides on the dice (these must be whole number non-negative intergers).  See the example below.
 
 ![Dice Example 1](pict_dnd/dice_roll.jpg)
+
+
 ![Dice Example 2](pict_dnd/dice_ex_2.jpg)
 
 
